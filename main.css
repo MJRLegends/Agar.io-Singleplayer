@@ -1,0 +1,16 @@
+#information-wrapper{
+	margin: 15px 0px;
+	text-align: center;
+	border: solid 2px #000000;
+}
+ 
+#game-wrapper{
+	text-align: center;
+	border: solid 2px #000000;
+}
+header{
+	text-align: center;
+	background-color: #000000;
+	color: #FFFFFF;
+	padding: 5px 0px 5px 0px;
+}
