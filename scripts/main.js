@@ -11,6 +11,8 @@ var spriteObject = {
     vx: 0,
     vy: 0,
 	eaten: false,
+	lastx : 0,
+	lasty : 0,
 	
 	//Getters
     centerX: function() {
@@ -24,7 +26,31 @@ var spriteObject = {
     },
     halfHeight: function() {
         return this.height / 2;
-    }
+    },
+	isMoving : function(){
+		var tempX;
+		var tempY;
+		if(this.x < this.lastx)
+			tempX = this.lastx - this.x;
+		else 
+			tempX = this.x - this.lastx;
+			
+		if(this.y < this.lasty)
+			tempY = this.lasty - this.y;
+		else 
+			tempY = this.y - this.lasty;
+		if(tempX > 0.5){
+			this.lastx = this.x;
+			return true;
+		}
+		else if(tempY > 0.5)
+		{
+			this.lasty = this.y;
+			return true;
+		}
+		else
+			return false;
+	}
 };
 
 //Button object
@@ -45,6 +71,7 @@ var drawingSurface = canvas.getContext("2d");
 var sprites = []; //An array to store the sprites
 var menuButtons = []; //An array to store the main menu buttons
 var pausedButtons = []; //An array to store the pasued menu buttons
+var mapWalls = []; //An array to store the pasued menu buttons
 
 var map = []; //An array to store the map
 
@@ -68,6 +95,7 @@ var moveDown = false;
 var moveRight = false;
 var moveLeft = false;
 var pressedESC = false;
+var pressedW = false;
 var paused = false;
 var gameStarted = false;
 
@@ -102,6 +130,9 @@ window.addEventListener("keydown", function(event) {
 			else 
 				pressedESC = true;
             break;
+		case W:
+			pressedW = true;
+			break;
     }
 }, false);
 
@@ -118,6 +149,9 @@ window.addEventListener("keyup", function(event) {
 			break;
 		case LEFT:
 			moveLeft = false;
+			break;
+		case W:
+			pressedW = false;
 			break;
     }
 }, false);
@@ -196,7 +230,7 @@ function update(){ // Update Method
 			if (gameStart == false) { // Starts/Resets the game
 				gameStart = true;
 				sprites = []; // Clears the sprite array
-				playerspeed = 3;
+				playerspeed = 1.5;
 				lineTick = 1;
 				score = 0;
 				//Create the player
@@ -213,48 +247,36 @@ function update(){ // Update Method
 				//Up
 				if(moveUp && !moveDown)
 				{
-					player.vy = -2;
+					player.vy = -playerspeed;
 				}
 				
 				//Down
 				if(moveDown && !moveUp)
 				{
-					player.vy = 2;
+					player.vy = playerspeed;
 				}
 				
 				//Left
 				if(moveLeft && !moveRight)
 				{
-					player.vx = -2;
+					player.vx = -playerspeed;
 				}
 				
 				//Right
 				if(moveRight && !moveLeft)
 				{
-					player.vx = 2;
+					player.vx = playerspeed;
+				}
+				
+				
+				//Shoot Mass
+				if(pressedW){
+					
 				}
 
-				//Set the player's velocity to zero if none of the keys are being pressed
-				if(!moveUp && !moveDown)
-				{
-					player.vy = 0;
-				}
-				if(!moveLeft && !moveRight)
-				{
-					player.vx = 0;
-				}
 				//Move the player
 				player.x += player.vx;
-				player.y += player.vy;
-				
-				for(var i = 0; i < map.length; i++){
-					if(player.vx != 0){
-						map[i].x = map[i].x - player.vx * 2;
-					}
-					if(player.vy != 0){
-						map[i].y = map[i].y - player.vy * 2;
-					}					
-				}				
+				player.y += player.vy;		
 
 				//Collision detection to make sure the player cant go off the canvas
 				if (player.x < 0)
@@ -264,10 +286,26 @@ function update(){ // Update Method
 					player.y = 0;
 				}
 				
+				//Set the player's velocity to zero if none of the keys are being pressed
+				if(!moveUp && !moveDown)
+				{
+					player.vy = 0;
+				}
+				if(!moveLeft && !moveRight)
+				{
+					player.vx = 0;
+				}
+							
 				if (player.x + player.width > canvas.width)
 					player.x = canvas.width - player.width;
 				if (player.y + player.height > canvas.height)
 					player.y = canvas.height - player.height;
+				
+				blockRectangle(player,map[map.length - 4]);
+				blockRectangle(player,map[map.length - 3]);
+				blockRectangle(player,map[map.length - 2]);
+				blockRectangle(player,map[map.length - 1]);
+				
 				if(map.length != 0)
 					for(var i = 0; i < map.length; i++){
 						if(blockCircle(player, map[i]) != "none"){
@@ -277,9 +315,70 @@ function update(){ // Update Method
 								score++;
 								sprites[0].width = sprites[0].width + 0.5;
 								sprites[0].height = sprites[0].height + 0.5;
+								if(score <= 25)
+									playerspeed = 1.4;
+								if(score <= 50 && score > 25)
+									playerspeed = 1.2;
+								if(score <= 100 && score > 50)
+									playerspeed = 1.0;
+								if(score <= 250 && score > 100)
+									playerspeed = 0.8;
+								if(score <= 350 && score > 250)
+									playerspeed = 0.7;
+								if(score <= 450 && score > 350)
+									playerspeed = 0.6;
+								if(score <= 550 && score > 450)
+									playerspeed = 0.5;
+								if(score <= 750 && score > 550)
+									playerspeed = 0.4;
+							}
+							else if(map[i].eaten == true){
+								var sourceX = 0;
+								var random = Math.floor((Math.random() * 3) + 0);
+								switch(random){
+									case 0:
+										sourceX = 0;
+										break;
+									case 1:
+										sourceX = 64;
+										break;
+									case 2:
+										sourceX = 128;
+										break;
+									case 3:
+										sourceX = 192;
+										break;
+								}
+								map[i] = Object.create(spriteObject);
+								map[i].sourceX = sourceX;
+								map[i].x = Math.floor((Math.random() * (canvas.width + 2000)) + 0);
+								map[i].y = Math.floor((Math.random() * (canvas.height + 2000)) + 0);
+								map[i].width = 16;
+								map[i].height = 16;
+								map[i].eaten = false;
 							}
 						}
 					}
+					
+				/*if(player.isMoving() == true){
+					var amountX;
+					var amountY;
+					if(player.vx != 0){
+						amountX = player.vx * 5;
+					}
+					if(player.vy != 0){
+						amountY = player.vy * 5;
+					}
+						
+					for(var i = 0; i < map.length; i++){
+						map[i].x = map[i].x - amountX;
+						map[i].y = map[i].y - amountY;
+					}
+					for(var i = 0; i < mapWalls.length; i++){
+						mapWalls[i].x = mapWalls[i].x - amountX;
+						mapWalls[i].y = mapWalls[i].y - amountY;
+					}
+				}*/		
 			}
 		}
 	}
@@ -287,7 +386,7 @@ function update(){ // Update Method
 }
 
 function loadMap(){
-	for(var i = 0; i < 1000; i++){
+	for(var i = 0; i < 1000; i++){ // Small dots
 		var sourceX = 0;
 		var random = Math.floor((Math.random() * 3) + 0);
 		switch(random){
@@ -313,17 +412,52 @@ function loadMap(){
 		temp.height = 16;
 		map.push(temp);
 	}
-	for(var i = 0; i < 150; i++){
+	for(var i = 0; i < 50; i++){
 		var temp;
 		temp = Object.create(spriteObject);
 		temp.sourceX = 0;
-		temp.x = Math.floor((Math.random() * (canvas.width + 2000)) + 0) + 250;
-		temp.y = Math.floor((Math.random() * (canvas.height + 2000)) + 0) + 250;
+		temp.x = Math.floor((Math.random() * (canvas.width + 1700)) + 0) + 250;
+		temp.y = Math.floor((Math.random() * (canvas.height + 1700)) + 0) + 250;
 		var size = Math.floor((Math.random() * 32) + 97);
 		temp.width = size;
 		temp.height = size;
 		map.push(temp);
 	}
+	// Wall Top
+	temp = Object.create(spriteObject);
+	temp.sourceX = 0;
+	temp.x = 0;
+	temp.y = 0;
+	temp.width = (canvas.width + 2000);
+	temp.height = 5;
+	mapWalls.push(temp);
+	
+	// Wall Bottom
+	temp = Object.create(spriteObject);
+	temp.sourceX = 0;
+	temp.x = 0;
+	temp.y = (canvas.height + 2000);
+	temp.width = (canvas.width + 2000);
+	temp.height = 5;
+	mapWalls.push(temp);
+	
+	// Wall Left
+	temp = Object.create(spriteObject);
+	temp.sourceX = 0;
+	temp.x = 0;
+	temp.y = 0;
+	temp.width = 5;
+	temp.height = (canvas.height + 2000);
+	mapWalls.push(temp);
+	
+	// Wall Right
+	temp = Object.create(spriteObject);
+	temp.sourceX = 0;
+	temp.x = (canvas.width + 2000);
+	temp.y = 0;
+	temp.width = 5;
+	temp.height = (canvas.height + 2000);
+	mapWalls.push(temp);
 }
 
 function blockCircle(c1, c2)
@@ -346,6 +480,73 @@ function blockCircle(c1, c2)
   }
   else
 	  return "none";
+}
+
+function blockRectangle(r1, r2) {
+    //A variable to tell us which side the collision is occurring on
+    var collisionSide = "";
+
+    //Calculate the distance vector
+    var vx = r1.centerX() - r2.centerX();
+    var vy = r1.centerY() - r2.centerY();
+
+    //Figure out the combined half-widths and half-heights
+    var combinedHalfWidths = r1.halfWidth() + r2.halfWidth();
+    var combinedHalfHeights = r1.halfHeight() + r2.halfHeight();
+
+    //Check whether vx is less than the combined half-widths 
+    if (Math.abs(vx) < combinedHalfWidths) {
+        //A collision might be occurring! 
+        //Check whether vy is less than the combined half-heights 
+        if (Math.abs(vy) < combinedHalfHeights) {
+            //A collision has occurred! This is good! 
+            //Find out the size of the overlap on both the X and Y axes
+            var overlapX = combinedHalfWidths - Math.abs(vx);
+            var overlapY = combinedHalfHeights - Math.abs(vy);
+
+            //The collision has occurred on the axis with the
+            //*smallest* amount of overlap. Let's figure out which
+            //axis that is
+
+            if (overlapX >= overlapY) {
+                //The collision is happening on the X axis 
+                //But on which side? vy can tell us
+                if (vy > 0) {
+                    collisionSide = "top";
+
+                    //Move the rectangle out of the collision
+                    r1.y = r1.y + overlapY;
+                } else {
+                    collisionSide = "bottom";
+
+                    //Move the rectangle out of the collision
+                    r1.y = r1.y - overlapY;
+                }
+            } else {
+                //The collision is happening on the Y axis 
+                //But on which side? vx can tell us
+                if (vx > 0) {
+                    collisionSide = "left";
+
+                    //Move the rectangle out of the collision
+                    r1.x = r1.x + overlapX;
+                } else {
+                    collisionSide = "right";
+
+                    //Move the rectangle out of the collision
+                    r1.x = r1.x - overlapX;
+                }
+            }
+        } else {
+            //No collision
+            collisionSide = "none";
+        }
+    } else {
+        //No collision
+        collisionSide = "none";
+    }
+
+    return collisionSide;
 }
 
 function render() {
@@ -395,6 +596,19 @@ function render() {
 					sprite.width, sprite.height
 				);
 			}
+		}
+		
+		for (var i = 0; i < mapWalls.length; i++) {
+			var sprite = mapWalls[i];
+			//Draws image to the canvas
+			drawingSurface.drawImage(
+				image,
+				sprite.sourceX, sprite.sourceY,
+				sprite.sourceWidth, sprite.sourceHeight,
+				Math.floor(sprite.x), Math.floor(sprite.y),
+				sprite.width, sprite.height
+			);
+			
 		}
 		
 		//Renders game based text to the canvas
